@@ -160,4 +160,24 @@ export function registerObservationTools(server: McpServer, state: BridgeState):
       }
     }
   );
+
+  server.tool(
+    "debug_protocol",
+    "Dump the raw WebKit Inspector Protocol messages exchanged (for debugging)",
+    {
+      clear: z.boolean().optional().default(false).describe("Clear the debug log after reading"),
+    },
+    async ({ clear }) => {
+      try {
+        const conn = requireConnection(state);
+        const log = [...conn.debugLog];
+        if (clear) {
+          conn.debugLog.length = 0;
+        }
+        return textResult({ message_count: log.length, messages: log });
+      } catch (e: any) {
+        return errorResult(e.message);
+      }
+    }
+  );
 }

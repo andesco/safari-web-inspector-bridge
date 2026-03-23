@@ -17,6 +17,7 @@ export class WebKitConnection extends EventEmitter {
   public networkBuffer = new NetworkBuffer(1000);
   public consoleLog: ConsoleEntry[] = [];
   private maxConsoleEntries = 1000;
+  public debugLog: string[] = [];
 
   get isConnected(): boolean {
     return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
@@ -32,7 +33,9 @@ export class WebKitConnection extends EventEmitter {
       this.ws.on("error", (err) => reject(err));
 
       this.ws.on("message", (data) => {
-        const msg = JSON.parse(data.toString());
+        const raw = data.toString();
+        this.debugLog.push(`<< ${raw.slice(0, 500)}`);
+        const msg = JSON.parse(raw);
         if (msg.id !== undefined) {
           const pending = this.pendingCommands.get(msg.id);
           if (pending) {
@@ -83,6 +86,7 @@ export class WebKitConnection extends EventEmitter {
         },
       });
 
+      this.debugLog.push(`>> ${msg}`);
       this.ws!.send(msg);
     });
   }
