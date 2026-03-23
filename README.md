@@ -50,15 +50,15 @@ stateDiagram-v2
 
 ## Prerequisites
 
-- **macOS** -- required for `usbmuxd` and iOS device connectivity
-- **ios-webkit-debug-proxy** -- `brew install ios-webkit-debug-proxy`
-- **iOS device** with **Settings > Safari > Advanced > Web Inspector** enabled
-- The target app's WKWebView must have `isInspectable = true` (iOS 16.4+)
+- **`macOS`** required for `usbmuxd` and iOS device connectivity
+- **`ios-webkit-debug-proxy`**: `brew install ios-webkit-debug-proxy`
+- **`iOS`**: Settings &rsaquo; Safari &rsaquo; Advanced &rsaquo; Web Inspector: enabled
+- target app WKWebView must have `isInspectable = true`
 
 ## Installation
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/andesco/safari-web-inspector-bridge.git
 cd safari-web-inspector-bridge
 npm install
 npm run build
@@ -70,7 +70,7 @@ npm run build
 claude mcp add safari-web-inspector-bridge node /path/to/safari-web-inspector-bridge/dist/index.js
 ```
 
-### Add to any MCP client (Claude Desktop, etc.)
+### Add to any MCP client
 
 Add to your MCP configuration file:
 
@@ -128,7 +128,9 @@ Add to your MCP configuration file:
 | `SWIB_CONSOLE_CAPTURE` | `true` | Capture console messages on connect |
 | `SWIB_PROXY_PORT` | `9222` | Starting port for `ios-webkit-debug-proxy` device ports |
 
-Note: `SWIB_NETWORK_CAPTURE` and `SWIB_CONSOLE_CAPTURE` default to `true` -- set to `"false"` to disable. `SWIB_AUTO_CONNECT` defaults to `false` -- set to `"true"` to enable.
+> [!note]
+> `SWIB_NETWORK_CAPTURE` and `SWIB_CONSOLE_CAPTURE` default to `true` — set to `false` to disable.
+> `SWIB_AUTO_CONNECT` defaults to `false` — set to `true` to enable.
 
 ## Example Workflow
 
@@ -190,18 +192,15 @@ npm start            # Run the MCP server (node dist/index.js)
 
 ```
 src/
-  index.ts              # Entry point, server setup, lifecycle
-  types.ts              # Interfaces and config loader
-  proxy-manager.ts      # Spawns and manages ios-webkit-debug-proxy
-  device-discovery.ts   # Queries proxy for devices and pages
-  webkit-connection.ts  # WebSocket connection to WebKit Inspector Protocol
-  network-buffer.ts     # Ring buffer for network request entries (1000 max)
+  index.ts               # Entry point, server setup, lifecycle
+  types.ts               # Interfaces and config loader
+  proxy-manager.ts       # Spawns and manages ios-webkit-debug-proxy
+  device-discovery.ts    # Queries proxy for devices and pages
+  webkit-connection.ts   # WebSocket connection to WebKit Inspector Protocol
+  network-buffer.ts      # Ring buffer for network request entries (1000 max)
   tools/
-    device-tools.ts     # list_devices, list_inspectable_pages, connect
+    device-tools.ts      # list_devices, list_inspectable_pages, connect
     observation-tools.ts # get_url, get_dom, get_network_log, get_console_log, screenshot
     automation-tools.ts  # navigate, execute_javascript, click_element, type_text, wait_for
 ```
 
-## License
-
-MIT
