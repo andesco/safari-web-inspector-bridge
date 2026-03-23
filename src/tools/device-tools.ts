@@ -63,18 +63,29 @@ export function registerDeviceTools(server: McpServer, state: BridgeState): void
       const conn = new WebKitConnection();
       await conn.connect(page.websocket_url);
 
-      if (state.config.networkCapture) {
-        await conn.enableNetworkCapture();
-      }
-      if (state.config.consoleCapture) {
-        await conn.enableConsoleCapture();
-      }
-
+      // Set connection immediately so it's usable even if domain enables fail
       state.connection = conn;
       state.connectedPageId = page_id;
 
+      const warnings: string[] = [];
+      if (state.config.networkCapture) {
+        try {
+          await conn.enableNetworkCapture();
+        } catch (e: any) {
+          warnings.push(`Network capture unavailable: ${e.message}`);
+        }
+      }
+      if (state.config.consoleCapture) {
+        try {
+          await conn.enableConsoleCapture();
+        } catch (e: any) {
+          warnings.push(`Console capture unavailable: ${e.message}`);
+        }
+      }
+
       return textResult({
         connected: true,
+        ...(warnings.length > 0 ? { warnings } : {}),
         page_id,
         url: page.url,
         title: page.title,

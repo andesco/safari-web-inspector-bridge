@@ -99,7 +99,12 @@ export class WebKitConnection extends EventEmitter {
   }
 
   async enableNetworkCapture(): Promise<void> {
-    await this.send("Network.enable");
+    try {
+      await this.send("Network.enable");
+    } catch {
+      // Domain may not be available — register handlers anyway
+      // in case events arrive without explicit enable
+    }
 
     this.onEvent("Network.requestWillBeSent", (params) => {
       this.networkBuffer.add({
@@ -137,7 +142,11 @@ export class WebKitConnection extends EventEmitter {
   }
 
   async enableConsoleCapture(): Promise<void> {
-    await this.send("Console.enable");
+    try {
+      await this.send("Console.enable");
+    } catch {
+      // Domain may not be available — register handlers anyway
+    }
 
     this.onEvent("Console.messageAdded", (params) => {
       const msg = params.message || params;
