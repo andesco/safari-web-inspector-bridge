@@ -1,24 +1,24 @@
 # safari-web-inspector-bridge
 
-An MCP server that gives AI agents the same capabilities a developer gets from Safari Web Inspector -- inspect, observe, and automate WKWebViews running on connected iOS devices.
+An MCP server that gives AI agents the same capabilities a developer gets from Safari Web Inspector — inspect, observe, and automate WKWebViews running on connected iOS devices.
 
 ## Architecture
 
 ```mermaid
 graph TD
-    Agent["AI Agent<br/>(Claude, Gemini)"]
-    Bridge["safari-web-inspector-bridge<br/>(MCP Server)"]
-    Proxy["ios-webkit-debug-proxy<br/>(managed child process)"]
+    Agent["AI Agent<br/>Claude, Codex, etc."]
+    Bridge["MCP Server:<br /><code>safari-web-inspector-bridge</code>"]
+    Proxy["managed child process: <code>ios-webkit-debug-proxy</code>"]
     Device["iOS Device<br/>WKWebView"]
 
-    Agent <-->|"MCP (stdio)"| Bridge
+    Agent <-->|"MCP <code>stdio</code>"| Bridge
     Bridge <-->|"WebSocket<br/>WebKit Inspector Protocol"| Proxy
     Proxy <-->|"usbmuxd<br/>(USB / Wi-Fi)"| Device
 
-    style Agent fill:#f0f0f0,stroke:#333
-    style Bridge fill:#2d6da8,stroke:#1a4a72,color:#fff
-    style Proxy fill:#4a4a4a,stroke:#333,color:#fff
-    style Device fill:#f0f0f0,stroke:#333
+    style Agent fill:#f0f0f0
+    style Bridge fill:#f0f0f0
+    style Proxy fill:#f0f0f0
+    style Device fill:#f0f0f0
 ```
 
 The server spawns `ios-webkit-debug-proxy` as a child process, connects to the WebKit Inspector Protocol over WebSocket, and exposes everything as MCP tools. The proxy is managed for its full lifecycle -- started on init, health-checked, auto-restarted on crash, and killed on shutdown.
@@ -40,35 +40,13 @@ stateDiagram-v2
     Stopped --> [*]
 ```
 
-### Tool Categories
+### 13 MCP Tools
 
-```mermaid
-graph LR
-    subgraph Discovery
-        LD[list_devices]
-        LP[list_inspectable_pages]
-        C[connect]
-    end
+**Discovery:** `list_devices` | `list_inspectable_pages` | `connect`
 
-    subgraph Observation
-        GU[get_url]
-        GD[get_dom]
-        GN[get_network_log]
-        GC[get_console_log]
-        SS[screenshot]
-    end
+**Observation:** `get_url` | `get_dom` | `get_network_log` | `get_console_log` | `screenshot`
 
-    subgraph Automation
-        NAV[navigate]
-        EJ[execute_javascript]
-        CE[click_element]
-        TT[type_text]
-        WF[wait_for]
-    end
-
-    Discovery --> Observation
-    Discovery --> Automation
-```
+**Automation:** `navigate` | `execute_javascript` | `click_element` | `type_text` | `wait_for`
 
 ## Prerequisites
 
