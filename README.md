@@ -1,6 +1,6 @@
-# safari-web-inspector-bridge
+# Safari Web Inspector Bridge
 
-An MCP server that gives AI agents the same capabilities a developer gets from Safari Web Inspector — inspect, observe, and automate WKWebViews running on connected iOS devices.
+Safari Web Inspector Bridge is an MCP server that gives AI agents the same capabilities a developer gets from Safari Web Inspector — inspect, observe, and automate WKWebViews running on connected iOS devices.
 
 ## Architecture
 
