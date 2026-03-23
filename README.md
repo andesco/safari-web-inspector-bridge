@@ -4,29 +4,71 @@ An MCP server that gives AI agents the same capabilities a developer gets from S
 
 ## Architecture
 
-```
-+--------------+     MCP (stdio)     +-------------------------+
-|  AI Agent    |<------------------->|  safari-web-inspector-  |
-|  (Claude,    |                     |  bridge (MCP server)    |
-|   Gemini)    |                     +-----------+-------------+
-+--------------+                                 |
-                                                 | WebSocket
-                                                 v
-                                          +------------------+
-                                          | ios-webkit-debug- |
-                                          | proxy (managed    |
-                                          | child process)    |
-                                          +---------+--------+
-                                                    |
-                                                    | usbmuxd
-                                                    v
-                                             +--------------+
-                                             |  iOS Device  |
-                                             |  WKWebView   |
-                                             +--------------+
+```mermaid
+graph TD
+    Agent["AI Agent<br/>(Claude, Gemini)"]
+    Bridge["safari-web-inspector-bridge<br/>(MCP Server)"]
+    Proxy["ios-webkit-debug-proxy<br/>(managed child process)"]
+    Device["iOS Device<br/>WKWebView"]
+
+    Agent <-->|"MCP (stdio)"| Bridge
+    Bridge <-->|"WebSocket<br/>WebKit Inspector Protocol"| Proxy
+    Proxy <-->|"usbmuxd<br/>(USB / Wi-Fi)"| Device
+
+    style Agent fill:#f0f0f0,stroke:#333
+    style Bridge fill:#2d6da8,stroke:#1a4a72,color:#fff
+    style Proxy fill:#4a4a4a,stroke:#333,color:#fff
+    style Device fill:#f0f0f0,stroke:#333
 ```
 
 The server spawns `ios-webkit-debug-proxy` as a child process, connects to the WebKit Inspector Protocol over WebSocket, and exposes everything as MCP tools. The proxy is managed for its full lifecycle -- started on init, health-checked, auto-restarted on crash, and killed on shutdown.
+
+### Proxy Lifecycle
+
+```mermaid
+stateDiagram-v2
+    [*] --> Checking: Server starts
+    Checking --> Spawning: Binary found
+    Checking --> Error: Binary missing
+    Spawning --> HealthCheck: Process started
+    HealthCheck --> Ready: localhost:9221 responds
+    HealthCheck --> Error: Timeout (10s)
+    Ready --> Crashed: Process exits
+    Crashed --> Spawning: Restart (once)
+    Crashed --> Error: Already retried
+    Ready --> Stopped: Graceful shutdown
+    Stopped --> [*]
+```
+
+### Tool Categories
+
+```mermaid
+graph LR
+    subgraph Discovery
+        LD[list_devices]
+        LP[list_inspectable_pages]
+        C[connect]
+    end
+
+    subgraph Observation
+        GU[get_url]
+        GD[get_dom]
+        GN[get_network_log]
+        GC[get_console_log]
+        SS[screenshot]
+    end
+
+    subgraph Automation
+        NAV[navigate]
+        EJ[execute_javascript]
+        CE[click_element]
+        TT[type_text]
+        WF[wait_for]
+    end
+
+    Discovery --> Observation
+    Discovery --> Automation
+```
 
 ## Prerequisites
 
@@ -112,29 +154,48 @@ Note: `SWIB_NETWORK_CAPTURE` and `SWIB_CONSOLE_CAPTURE` default to `true` -- set
 
 ## Example Workflow
 
-```
-Agent: list_inspectable_pages
-  -> [{ page_id: "1", title: "Banks", url: "https://beingood.company/banks",
-        app_bundle_id: "company.beingood.verified.Clip", device_udid: "00008..." }]
+```mermaid
+sequenceDiagram
+    participant Agent as AI Agent
+    participant Bridge as MCP Server
+    participant Proxy as ios-webkit-debug-proxy
+    participant Device as iOS WKWebView
 
-Agent: connect({ page_id: "1" })
-  -> { connected: true, page_id: "1", url: "https://beingood.company/banks", title: "Banks" }
+    Agent->>Bridge: list_inspectable_pages()
+    Bridge->>Proxy: GET /json (devices + pages)
+    Proxy-->>Bridge: page_id: "1", title: "Banks"
+    Bridge-->>Agent: [{ page_id, title, url, app_bundle_id }]
 
-Agent: get_network_log({ filter_url: "scotiabank" })
-  -> [{ method: "GET", url: "https://www.scotiabank.com/...", status: 302,
-        redirected_to: "scotiabank://..." }]
+    Agent->>Bridge: connect({ page_id: "1" })
+    Bridge->>Proxy: WebSocket connect
+    Proxy->>Device: WebKit Inspector attach
+    Device-->>Proxy: Connected
+    Bridge-->>Agent: { connected: true }
 
-Agent: execute_javascript({ expression: "document.title" })
-  -> { result: "Banks" }
+    Agent->>Bridge: get_network_log({ filter_url: "scotiabank" })
+    Bridge-->>Agent: [{ url, status: 302, redirected_to: "scotiabank://..." }]
 
-Agent: click_element({ selector: "button.next" })
-  -> { clicked: true, selector: "button.next", tag_name: "button" }
+    Agent->>Bridge: execute_javascript("document.title")
+    Bridge->>Device: Runtime.evaluate
+    Device-->>Bridge: "Banks"
+    Bridge-->>Agent: { result: "Banks" }
 
-Agent: wait_for({ url_contains: "/dashboard", timeout_ms: 5000 })
-  -> { matched: true, elapsed_ms: 1230 }
+    Agent->>Bridge: click_element({ selector: "button.next" })
+    Bridge->>Device: Runtime.evaluate (querySelector + click)
+    Device-->>Bridge: clicked
+    Bridge-->>Agent: { clicked: true, tag_name: "button" }
 
-Agent: screenshot()
-  -> [image: PNG screenshot of the webview]
+    Agent->>Bridge: wait_for({ url_contains: "/dashboard" })
+    loop Poll until match
+        Bridge->>Device: Runtime.evaluate (location.href)
+        Device-->>Bridge: current URL
+    end
+    Bridge-->>Agent: { matched: true, elapsed_ms: 1230 }
+
+    Agent->>Bridge: screenshot()
+    Bridge->>Device: Page.snapshotRect
+    Device-->>Bridge: base64 PNG
+    Bridge-->>Agent: image content
 ```
 
 ## Development
