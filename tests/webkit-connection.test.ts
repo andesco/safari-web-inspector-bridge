@@ -22,8 +22,12 @@ describe("WebKitConnection", () => {
       expression: "1+1",
     });
     expect(result).toBeDefined();
-    expect(server.receivedMessages).toHaveLength(1);
-    expect(server.receivedMessages[0].method).toBe("Runtime.evaluate");
+    const methods = server.receivedMessages.map((m) => m.method);
+    expect(methods).toContain("Runtime.evaluate");
+    // Also expect core domain enables sent on connect
+    expect(methods).toContain("Runtime.enable");
+    expect(methods).toContain("Page.enable");
+    expect(methods).toContain("DOM.enable");
   });
 
   it("receives events via onEvent", async () => {

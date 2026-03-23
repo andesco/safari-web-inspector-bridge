@@ -26,7 +26,9 @@ export class WebKitConnection extends EventEmitter {
     return new Promise((resolve, reject) => {
       this.ws = new WebSocket(url);
 
-      this.ws.on("open", () => resolve());
+      this.ws.on("open", () => {
+        this.enableCoreDomains().then(() => resolve(), () => resolve());
+      });
       this.ws.on("error", (err) => reject(err));
 
       this.ws.on("message", (data) => {
@@ -95,6 +97,18 @@ export class WebKitConnection extends EventEmitter {
     const handlers = this.eventHandlers.get(method) || [];
     for (const handler of handlers) {
       handler(params);
+    }
+  }
+
+  private async enableCoreDomains(): Promise<void> {
+    // WebKit Inspector requires domains to be enabled before use
+    const domains = ["Runtime", "Page", "DOM"];
+    for (const domain of domains) {
+      try {
+        await this.send(`${domain}.enable`);
+      } catch {
+        // Domain may not be available in this protocol version
+      }
     }
   }
 
